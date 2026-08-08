@@ -9,7 +9,6 @@ function classify(raw) {
   const s = String(raw).trim();
   if (s === '' || s === '-' || s === 'XXX' || s === 'XX') return { cls: 'dash', label: '–' };
 
-  // shift time strings, e.g. "10:00 – 19:00"
   const timeMatch = s.match(/^(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/);
   if (timeMatch) {
     const startHour = parseInt(timeMatch[1].split(':')[0], 10);
@@ -23,7 +22,7 @@ function classify(raw) {
   if (upper === 'HOLIDAY') return { cls: 'holiday', label: 'Holiday' };
   if (upper.includes('COMP') && upper.includes('OFF')) return { cls: 'compoff', label: 'Comp Off' };
   if (upper === 'HALF DAY' || upper === 'HD' || upper.includes('HALF DAY')) return { cls: 'halfday', label: 'Half Day' };
-  if (['LEAVE','CL','SL','AL','PL','LWP'].includes(upper) || upper.includes('LEAVE')) return { cls: 'leave', label: s };
+  if (['LEAVE', 'CL', 'SL', 'AL', 'PL', 'LWP'].includes(upper) || upper.includes('LEAVE')) return { cls: 'leave', label: s };
   if (upper === 'A' || upper === 'ABSENT') return { cls: 'absent', label: 'Absent' };
   if (upper === 'OFFICE') return { cls: 'office', label: 'Office' };
   return { cls: 'other', label: s };
@@ -40,22 +39,69 @@ function dowShort(name) {
   return (name || '').slice(0, 3).toUpperCase();
 }
 
+function hexAlpha(cssVar) {
+  return `color-mix(in srgb, ${cssVar} 16%, transparent)`;
+}
+
 // ---------- state ----------
-const months = [...ATTENDANCE_DATA].sort(MONTH_ORDER);
+const manifest = [...MONTH_MANIFEST].sort(MONTH_ORDER);
+const monthCache = new Map(); // sheetName -> parsed month record
+let directoryData = null;
+
 let state = {
   team: 'IB',
-  monthKey: null,
+  manifestEntry: null,
   search: ''
 };
 
-function monthKey(m) { return `${m.year}-${m.month}-${m.team}`; }
-
 function availableMonths(team) {
-  return months.filter(m => m.team === team).sort(MONTH_ORDER).reverse();
+  return manifest.filter(m => m.team === team).sort(MONTH_ORDER).reverse();
 }
 
-function currentMonthData() {
-  return months.find(m => monthKey(m) === state.monthKey);
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ---------- live status ----------
+function setStatus(mode, text) {
+  const el = $('#liveStatus');
+  el.className = `live-status ${mode}`;
+  el.innerHTML = `<span class="dot"></span>${text}`;
+}
+
+// ---------- data loading ----------
+async function loadMonth(entry) {
+  const cacheKey = entry.sheet;
+  if (monthCache.has(cacheKey)) return monthCache.get(cacheKey);
+
+  try {
+    const table = await fetchSheetTable(entry.sheet);
+    const parsed = parseMonthTable(table, entry.team);
+    parsed.source = 'live';
+    monthCache.set(cacheKey, parsed);
+    return parsed;
+  } catch (err) {
+    console.warn(`Live fetch failed for "${entry.sheet}":`, err.message);
+    const fallback = FALLBACK_DATA.find(m => m.sheet === entry.sheet);
+    if (fallback) {
+      const copy = { ...fallback, source: 'fallback' };
+      monthCache.set(cacheKey, copy);
+      return copy;
+    }
+    throw err;
+  }
+}
+
+async function loadDirectory(force = false) {
+  if (directoryData && !force) return directoryData;
+  try {
+    const table = await fetchSheetTable('Others');
+    directoryData = { people: parseDirectoryTable(table), source: 'live' };
+  } catch (err) {
+    console.warn('Live directory fetch failed:', err.message);
+    directoryData = { people: FALLBACK_DIRECTORY, source: 'fallback' };
+  }
+  return directoryData;
 }
 
 // ---------- rendering ----------
@@ -65,34 +111,44 @@ function populateMonthSelect() {
   const opts = availableMonths(state.team);
   opts.forEach(m => {
     const o = document.createElement('option');
-    o.value = monthKey(m);
+    o.value = m.sheet;
     o.textContent = m.monthLabel;
     sel.appendChild(o);
   });
-  if (opts.length) {
-    state.monthKey = monthKey(opts[0]);
-    sel.value = state.monthKey;
-  }
+  state.manifestEntry = opts[0] || null;
+  if (state.manifestEntry) sel.value = state.manifestEntry.sheet;
 }
 
-function todayISO() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
-}
-
-function renderTable() {
-  const data = currentMonthData();
+async function renderTable() {
   const thead = $('#rosterTable thead');
   const tbody = $('#rosterTable tbody');
-  thead.innerHTML = '';
-  tbody.innerHTML = '';
   $('#emptyNote').hidden = true;
 
-  if (!data) return;
+  if (!state.manifestEntry) {
+    thead.innerHTML = ''; tbody.innerHTML = '';
+    return;
+  }
 
+  setStatus('loading', 'Syncing…');
+  thead.innerHTML = '';
+  tbody.innerHTML = `<tr><td class="loading-row">Loading roster…</td></tr>`;
+
+  let data;
+  try {
+    data = await loadMonth(state.manifestEntry);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td class="loading-row">Couldn't load this month. ${err.message}</td></tr>`;
+    setStatus('error', 'Sync failed');
+    return;
+  }
+
+  setStatus(data.source === 'live' ? 'live' : 'stale',
+    data.source === 'live' ? 'Live from Sheet' : 'Cached snapshot');
+
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
   const today = todayISO();
 
-  // header row
   const trh = document.createElement('tr');
   const thName = document.createElement('th');
   thName.className = 'name-col';
@@ -107,7 +163,6 @@ function renderTable() {
   });
   thead.appendChild(trh);
 
-  // body rows
   const q = state.search.trim().toLowerCase();
   let shown = 0;
   data.employees.forEach(emp => {
@@ -148,11 +203,6 @@ function renderTable() {
   renderStats(data, shown);
 }
 
-function hexAlpha(cssVar) {
-  // build a translucent background using the css var via color-mix fallback
-  return `color-mix(in srgb, ${cssVar} 16%, transparent)`;
-}
-
 function renderStats(data, shownCount) {
   const wrap = $('#statGroup');
   wrap.innerHTML = '';
@@ -173,27 +223,26 @@ function renderStats(data, shownCount) {
 function renderLegend() {
   const legend = $('#legend');
   const items = [
-    ['c-present', 'Present'],
-    ['c-wfh', 'WFH'],
-    ['c-off', 'Off'],
-    ['c-holiday', 'Holiday'],
-    ['c-leave', 'Leave (CL/SL/PL…)'],
-    ['c-halfday', 'Half day'],
-    ['c-compoff', 'Comp off'],
-    ['c-absent', 'Absent'],
-    ['c-office', 'Office'],
+    ['c-present', 'Present'], ['c-wfh', 'WFH'], ['c-off', 'Off'],
+    ['c-holiday', 'Holiday'], ['c-leave', 'Leave (CL/SL/PL…)'],
+    ['c-halfday', 'Half day'], ['c-compoff', 'Comp off'],
+    ['c-absent', 'Absent'], ['c-office', 'Office'],
   ];
   legend.innerHTML = items.map(([cls, label]) => `
     <div class="legend-item">
-      <span class="legend-swatch ${cls}" style="background:var(--${cls.replace('c-','')})"></span>
+      <span class="legend-swatch ${cls}" style="background:var(--${cls.replace('c-', '')})"></span>
       ${label}
     </div>`).join('') + `
     <div class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,var(--amber),var(--teal),var(--violet),var(--indigo))"></span>Shift time (color = time of day)</div>`;
 }
 
-function renderDirectory() {
+async function renderDirectory(force = false) {
   const grid = $('#dirGrid');
-  grid.innerHTML = DIRECTORY_DATA.map(p => `
+  grid.innerHTML = `<p class="loading-row">Loading directory…</p>`;
+  const { people, source } = await loadDirectory(force);
+  $('#dirStatus').textContent = source === 'live' ? 'Live from Sheet' : 'Cached snapshot';
+  $('#dirStatus').className = `live-status small ${source === 'live' ? 'live' : 'stale'}`;
+  grid.innerHTML = people.map(p => `
     <div class="dir-card">
       <div class="dname">${p.name}</div>
       <div class="dir-row"><span>Extension</span><span>${p.extension ?? '—'}</span></div>
@@ -203,13 +252,11 @@ function renderDirectory() {
 }
 
 function renderRangeLabel() {
-  const first = months[0], last = months[months.length - 1];
-  if (first && last) {
-    $('#rangeLabel').textContent = `${first.monthLabel} – ${last.monthLabel}`;
-  }
+  const first = manifest[0], last = manifest[manifest.length - 1];
+  if (first && last) $('#rangeLabel').textContent = `${first.monthLabel} – ${last.monthLabel}`;
 }
 
-// ---------- clock + dial marker (signature element) ----------
+// ---------- clock + dial ----------
 function tickClock() {
   const now = new Date();
   $('#liveClock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -230,7 +277,7 @@ function bindEvents() {
   });
 
   $('#monthSelect').addEventListener('change', e => {
-    state.monthKey = e.target.value;
+    state.manifestEntry = manifest.find(m => m.sheet === e.target.value) || null;
     renderTable();
   });
 
@@ -239,12 +286,20 @@ function bindEvents() {
     renderTable();
   });
 
+  $('#refreshBtn').addEventListener('click', () => {
+    if (state.manifestEntry) monthCache.delete(state.manifestEntry.sheet);
+    renderTable();
+  });
+
+  $('#dirRefreshBtn').addEventListener('click', () => renderDirectory(true));
+
   $$('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       $$('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       $$('.view').forEach(v => v.classList.remove('active'));
       $(`#view-${tab.dataset.view}`).classList.add('active');
+      if (tab.dataset.view === 'directory' && !directoryData) renderDirectory();
     });
   });
 }
@@ -254,7 +309,6 @@ function init() {
   populateMonthSelect();
   renderLegend();
   renderTable();
-  renderDirectory();
   renderRangeLabel();
   bindEvents();
   tickClock();

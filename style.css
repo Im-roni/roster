@@ -93,6 +93,34 @@ header.topbar{
   background:var(--surface);
 }
 
+/* live status badge */
+.live-status{
+  display:inline-flex; align-items:center; gap:7px;
+  font-family:var(--font-mono); font-size:12px; font-weight:500;
+  padding:7px 12px; border-radius:999px; border:1px solid var(--line);
+  background:var(--surface); color:var(--text-dim); white-space:nowrap;
+}
+.live-status.small{padding:5px 10px; font-size:11px;}
+.live-status .dot{width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex:none;}
+.live-status.live{color:var(--present); border-color:rgba(63,207,142,0.35);}
+.live-status.live .dot{background:var(--present); box-shadow:0 0 6px rgba(63,207,142,0.7); animation:pulse 2s infinite;}
+.live-status.loading{color:var(--amber); border-color:rgba(255,180,84,0.35);}
+.live-status.loading .dot{background:var(--amber); animation:pulse 1s infinite;}
+.live-status.stale{color:var(--text-dim);}
+.live-status.stale .dot{background:var(--text-faint);}
+.live-status.error{color:var(--absent); border-color:rgba(255,107,129,0.35);}
+.live-status.error .dot{background:var(--absent);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+.refresh-btn{
+  font-family:var(--font-body); font-weight:600; font-size:13px;
+  background:var(--surface); color:var(--text-dim); border:1px solid var(--line);
+  padding:9px 14px; border-radius:9px; cursor:pointer; transition:.15s;
+}
+.refresh-btn:hover{color:var(--text); border-color:var(--indigo);}
+
+.loading-row{padding:22px; text-align:center; color:var(--text-dim); font-size:13.5px;}
+
 main{max-width:1280px; margin:0 auto; padding:28px 32px 60px;}
 
 .view{display:none;}
@@ -188,8 +216,10 @@ tbody td{padding:5px; text-align:center; border-bottom:1px solid rgba(255,255,25
 .legend-swatch{width:12px; height:12px; border-radius:4px;}
 
 /* directory */
+.dir-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px;}
 .dir-head h2{font-family:var(--font-display); margin:0 0 4px; font-size:22px;}
-.dir-head p{margin:0 0 22px; color:var(--text-dim); font-size:13.5px;}
+.dir-head p{margin:0; color:var(--text-dim); font-size:13.5px;}
+.dir-head-right{display:flex; align-items:center; gap:10px;}
 .dir-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px;}
 .dir-card{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);

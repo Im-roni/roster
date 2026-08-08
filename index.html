@@ -29,6 +29,7 @@
     <button class="tab active" data-view="attendance">Roster</button>
     <button class="tab" data-view="directory">Directory</button>
   </nav>
+  <div class="live-status loading" id="liveStatus"><span class="dot"></span>Syncing…</div>
   <div class="clock" id="liveClock"></div>
 </header>
 
@@ -52,6 +53,10 @@
         <input id="searchInput" type="text" placeholder="Search by name…" autocomplete="off">
       </div>
       <div class="control-group stat-group" id="statGroup"></div>
+      <div class="control-group">
+        <label>&nbsp;</label>
+        <button class="refresh-btn" id="refreshBtn" title="Re-fetch this month from the sheet">⟳ Refresh</button>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -67,8 +72,14 @@
 
   <section id="view-directory" class="view">
     <div class="dir-head">
-      <h2>Team directory</h2>
-      <p>Desk extensions &amp; AnyDesk IDs on file.</p>
+      <div>
+        <h2>Team directory</h2>
+        <p>Desk extensions &amp; AnyDesk IDs on file.</p>
+      </div>
+      <div class="dir-head-right">
+        <span class="live-status small loading" id="dirStatus"><span class="dot"></span>Syncing…</span>
+        <button class="refresh-btn" id="dirRefreshBtn" title="Re-fetch from the sheet">⟳ Refresh</button>
+      </div>
     </div>
     <div class="dir-grid" id="dirGrid"></div>
   </section>
@@ -79,8 +90,10 @@
   <span>Data synced from the team roster spreadsheet · <span id="rangeLabel"></span></span>
 </footer>
 
-<script src="attendance_data.js"></script>
-<script src="directory_data.js"></script>
+<script src="manifest.js"></script>
+<script src="fallback_data.js"></script>
+<script src="fallback_directory.js"></script>
+<script src="gsheet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
