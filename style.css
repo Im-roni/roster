@@ -144,6 +144,7 @@ body.light .theme-toggle .icon-sun{display:inline;}
   background:var(--surface); color:var(--text-dim); white-space:nowrap;
 }
 .live-status .dot{width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex:none;}
+.live-status .stamp{color:var(--text-faint); font-size:10.5px; margin-left:2px;}
 .live-status.live{color:var(--present); border-color:rgba(63,207,142,0.35);}
 .live-status.live .dot{background:var(--present); box-shadow:0 0 6px rgba(63,207,142,0.7); animation:pulse 2s infinite;}
 .live-status.loading{color:var(--amber); border-color:rgba(255,180,84,0.35);}

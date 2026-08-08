@@ -61,7 +61,15 @@ function availableMonths(team) {
 function setStatus(mode, text) {
   const el = $('#liveStatus');
   el.className = `live-status ${mode}`;
+  const stamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  el.innerHTML = `<span class="dot"></span>${text} <span class="stamp">${stamp}</span>`;
+  el.removeAttribute('title');
+}
+function setStatusError(text, detail) {
+  const el = $('#liveStatus');
+  el.className = 'live-status error';
   el.innerHTML = `<span class="dot"></span>${text}`;
+  if (detail) el.title = detail;
 }
 
 // ---------- data loading ----------
@@ -79,7 +87,7 @@ async function loadMonth(entry) {
     console.warn(`Live fetch failed for "${entry.sheet}":`, err.message);
     const fallback = FALLBACK_DATA.find(m => m.sheet === entry.sheet);
     if (fallback) {
-      const copy = { ...fallback, source: 'fallback' };
+      const copy = { ...fallback, source: 'fallback', error: err.message };
       monthCache.set(cacheKey, copy);
       return copy;
     }
@@ -127,6 +135,9 @@ async function renderTable() {
 
   setStatus(data.source === 'live' ? 'live' : 'stale',
     data.source === 'live' ? 'Live from Sheet' : 'Cached snapshot');
+  if (data.source !== 'live' && data.error) {
+    $('#liveStatus').title = `Live fetch failed: ${data.error}`;
+  }
 
   thead.innerHTML = '';
   tbody.innerHTML = '';

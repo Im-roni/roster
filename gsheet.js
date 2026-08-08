@@ -4,7 +4,8 @@ const SHEET_ID = '1DaxP_dHESicOXeqR4Nnv4v-PJDURMwev';
 function gvizUrl(sheetName) {
   const q = encodeURIComponent(sheetName);
   const bust = Date.now();
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${q}&_=${bust}`;
+  const reqId = Math.floor(Math.random() * 1e9);
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;reqId:${reqId}&sheet=${q}&_=${bust}`;
 }
 
 // Parses the JSONP-wrapped response Google returns from the gviz endpoint.
@@ -36,7 +37,10 @@ function cellValue(cell) {
 }
 
 async function fetchSheetTable(sheetName) {
-  const res = await fetch(gvizUrl(sheetName), { cache: 'no-store' });
+  const res = await fetch(gvizUrl(sheetName), {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
   return parseGvizResponse(text);
