@@ -13,7 +13,6 @@
 <body>
 
 <div class="dial-strip" aria-hidden="true">
-  <div class="dial-track"></div>
   <div class="dial-marker" id="dialMarker"></div>
 </div>
 
@@ -25,12 +24,14 @@
       <p>IB / OB roster &amp; attendance portal</p>
     </div>
   </div>
-  <nav class="tabs" id="tabs">
-    <button class="tab active" data-view="attendance">Roster</button>
-    <button class="tab" data-view="directory">Directory</button>
-  </nav>
-  <div class="live-status loading" id="liveStatus"><span class="dot"></span>Syncing…</div>
-  <div class="clock" id="liveClock"></div>
+
+  <div class="header-right">
+    <div class="live-status loading" id="liveStatus"><span class="dot"></span>Syncing…</div>
+    <div class="clock" id="liveClock"></div>
+    <button class="theme-toggle" id="themeToggle" title="Switch theme" aria-label="Switch theme">
+      <span class="icon-sun">☀</span><span class="icon-moon">☾</span>
+    </button>
+  </div>
 </header>
 
 <main>
@@ -70,20 +71,6 @@
     <div class="legend" id="legend"></div>
   </section>
 
-  <section id="view-directory" class="view">
-    <div class="dir-head">
-      <div>
-        <h2>Team directory</h2>
-        <p>Desk extensions &amp; AnyDesk IDs on file.</p>
-      </div>
-      <div class="dir-head-right">
-        <span class="live-status small loading" id="dirStatus"><span class="dot"></span>Syncing…</span>
-        <button class="refresh-btn" id="dirRefreshBtn" title="Re-fetch from the sheet">⟳ Refresh</button>
-      </div>
-    </div>
-    <div class="dir-grid" id="dirGrid"></div>
-  </section>
-
 </main>
 
 <footer>
@@ -92,7 +79,6 @@
 
 <script src="manifest.js"></script>
 <script src="fallback_data.js"></script>
-<script src="fallback_directory.js"></script>
 <script src="gsheet.js"></script>
 <script src="app.js"></script>
 </body>

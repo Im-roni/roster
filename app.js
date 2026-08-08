@@ -46,7 +46,6 @@ function hexAlpha(cssVar) {
 // ---------- state ----------
 const manifest = [...MONTH_MANIFEST].sort(MONTH_ORDER);
 const monthCache = new Map(); // sheetName -> parsed month record
-let directoryData = null;
 
 let state = {
   team: 'IB',
@@ -56,10 +55,6 @@ let state = {
 
 function availableMonths(team) {
   return manifest.filter(m => m.team === team).sort(MONTH_ORDER).reverse();
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 // ---------- live status ----------
@@ -90,18 +85,6 @@ async function loadMonth(entry) {
     }
     throw err;
   }
-}
-
-async function loadDirectory(force = false) {
-  if (directoryData && !force) return directoryData;
-  try {
-    const table = await fetchSheetTable('Others');
-    directoryData = { people: parseDirectoryTable(table), source: 'live' };
-  } catch (err) {
-    console.warn('Live directory fetch failed:', err.message);
-    directoryData = { people: FALLBACK_DIRECTORY, source: 'fallback' };
-  }
-  return directoryData;
 }
 
 // ---------- rendering ----------
@@ -147,7 +130,6 @@ async function renderTable() {
 
   thead.innerHTML = '';
   tbody.innerHTML = '';
-  const today = todayISO();
 
   const trh = document.createElement('tr');
   const thName = document.createElement('th');
@@ -158,7 +140,6 @@ async function renderTable() {
     const th = document.createElement('th');
     const dayNum = dateStr.slice(8, 10).replace(/^0/, '');
     th.innerHTML = `${dayNum}<span class="dow">${dowShort(data.dayNames[i])}</span>`;
-    if (dateStr === today) th.classList.add('today');
     trh.appendChild(th);
   });
   thead.appendChild(trh);
@@ -175,9 +156,8 @@ async function renderTable() {
     tdName.textContent = emp.name;
     tr.appendChild(tdName);
 
-    emp.days.forEach((val, i) => {
+    emp.days.forEach((val) => {
       const td = document.createElement('td');
-      if (data.dates[i] === today) td.classList.add('today');
       const info = classify(val);
       const span = document.createElement('span');
       if (info.cls === 'time') {
@@ -236,21 +216,6 @@ function renderLegend() {
     <div class="legend-item"><span class="legend-swatch" style="background:linear-gradient(90deg,var(--amber),var(--teal),var(--violet),var(--indigo))"></span>Shift time (color = time of day)</div>`;
 }
 
-async function renderDirectory(force = false) {
-  const grid = $('#dirGrid');
-  grid.innerHTML = `<p class="loading-row">Loading directory…</p>`;
-  const { people, source } = await loadDirectory(force);
-  $('#dirStatus').textContent = source === 'live' ? 'Live from Sheet' : 'Cached snapshot';
-  $('#dirStatus').className = `live-status small ${source === 'live' ? 'live' : 'stale'}`;
-  grid.innerHTML = people.map(p => `
-    <div class="dir-card">
-      <div class="dname">${p.name}</div>
-      <div class="dir-row"><span>Extension</span><span>${p.extension ?? '—'}</span></div>
-      <div class="dir-row"><span>AnyDesk ID</span><span>${p.anydesk ?? '—'}</span></div>
-    </div>
-  `).join('');
-}
-
 function renderRangeLabel() {
   const first = manifest[0], last = manifest[manifest.length - 1];
   if (first && last) $('#rangeLabel').textContent = `${first.monthLabel} – ${last.monthLabel}`;
@@ -262,6 +227,28 @@ function tickClock() {
   $('#liveClock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const pct = ((now.getHours() * 60 + now.getMinutes()) / 1440) * 100;
   $('#dialMarker').style.left = `${pct}%`;
+}
+
+// ---------- theme ----------
+function initTheme() {
+  const saved = localStorageSafeGet('shiftlog-theme');
+  const theme = saved || 'dark';
+  applyTheme(theme);
+  $('#themeToggle').addEventListener('click', () => {
+    const next = document.body.classList.contains('light') ? 'dark' : 'light';
+    applyTheme(next);
+    localStorageSafeSet('shiftlog-theme', next);
+  });
+}
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+}
+// Artifacts environments can block localStorage; degrade quietly if so.
+function localStorageSafeGet(key) {
+  try { return window.localStorage.getItem(key); } catch (e) { return null; }
+}
+function localStorageSafeSet(key, val) {
+  try { window.localStorage.setItem(key, val); } catch (e) { /* ignore */ }
 }
 
 // ---------- events ----------
@@ -290,22 +277,11 @@ function bindEvents() {
     if (state.manifestEntry) monthCache.delete(state.manifestEntry.sheet);
     renderTable();
   });
-
-  $('#dirRefreshBtn').addEventListener('click', () => renderDirectory(true));
-
-  $$('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      $$('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      $$('.view').forEach(v => v.classList.remove('active'));
-      $(`#view-${tab.dataset.view}`).classList.add('active');
-      if (tab.dataset.view === 'directory' && !directoryData) renderDirectory();
-    });
-  });
 }
 
 // ---------- init ----------
 function init() {
+  initTheme();
   populateMonthSelect();
   renderLegend();
   renderTable();

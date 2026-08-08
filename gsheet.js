@@ -90,41 +90,4 @@ function parseMonthTable(table, team) {
   };
 }
 
-function parseDirectoryTable(table) {
-  const rows = table.rows.map(r => r.c || []);
-  let headerRowIdx = -1, nameCol = -1, extCol = -1, anydeskCol = -1;
 
-  outer:
-  for (let r = 0; r < Math.min(rows.length, 10); r++) {
-    for (let c = 0; c < rows[r].length; c++) {
-      const v = cellValue(rows[r][c]);
-      if (typeof v === 'string' && v.trim().toLowerCase() === 'name') {
-        headerRowIdx = r; nameCol = c;
-        break outer;
-      }
-    }
-  }
-  if (headerRowIdx === -1) throw new Error('Directory header not found');
-
-  rows[headerRowIdx].forEach((cell, c) => {
-    const v = cellValue(cell);
-    if (typeof v !== 'string') return;
-    const low = v.trim().toLowerCase();
-    if (low.includes('extension') && extCol === -1) extCol = c;
-    if (low.includes('anydesk')) anydeskCol = c;
-  });
-
-  const people = [];
-  for (let r = headerRowIdx + 1; r < rows.length; r++) {
-    const row = rows[r];
-    const nameVal = cellValue(row[nameCol]);
-    if (typeof nameVal === 'string' && nameVal.trim().toLowerCase() === 'agent name') break; // second table starts
-    if (typeof nameVal !== 'string' || !nameVal.trim()) continue;
-    people.push({
-      name: nameVal.trim(),
-      extension: extCol > -1 ? cellValue(row[extCol]) : null,
-      anydesk: anydeskCol > -1 ? cellValue(row[anydeskCol]) : null
-    });
-  }
-  return people;
-}
