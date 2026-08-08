@@ -58,24 +58,14 @@ function availableMonths(team) {
 }
 
 // ---------- live status ----------
-function setStatus(mode, text) {
-  const el = $('#liveStatus');
-  el.className = `live-status ${mode}`;
-  const stamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  el.innerHTML = `<span class="dot"></span>${text} <span class="stamp">${stamp}</span>`;
-  el.removeAttribute('title');
-}
-function setStatusError(text, detail) {
-  const el = $('#liveStatus');
-  el.className = 'live-status error';
-  el.innerHTML = `<span class="dot"></span>${text}`;
-  if (detail) el.title = detail;
-}
+// (No persistent "live/cached" indicator by design — refresh silently keeps
+// the roster on screen fresh; the refresh button itself shows a brief
+// "Syncing…" state while a fetch is in flight.)
 
 // ---------- data loading ----------
-async function loadMonth(entry) {
+async function loadMonth(entry, forceFresh = false) {
   const cacheKey = entry.sheet;
-  if (monthCache.has(cacheKey)) return monthCache.get(cacheKey);
+  if (!forceFresh && monthCache.has(cacheKey)) return monthCache.get(cacheKey);
 
   try {
     const table = await fetchSheetTable(entry.sheet);
@@ -110,7 +100,7 @@ function populateMonthSelect() {
   if (state.manifestEntry) sel.value = state.manifestEntry.sheet;
 }
 
-async function renderTable() {
+async function renderTable(forceFresh = false) {
   const thead = $('#rosterTable thead');
   const tbody = $('#rosterTable tbody');
   $('#emptyNote').hidden = true;
@@ -120,23 +110,15 @@ async function renderTable() {
     return;
   }
 
-  setStatus('loading', 'Syncing…');
   thead.innerHTML = '';
   tbody.innerHTML = `<tr><td class="loading-row">Loading roster…</td></tr>`;
 
   let data;
   try {
-    data = await loadMonth(state.manifestEntry);
+    data = await loadMonth(state.manifestEntry, forceFresh);
   } catch (err) {
     tbody.innerHTML = `<tr><td class="loading-row">Couldn't load this month. ${err.message}</td></tr>`;
-    setStatus('error', 'Sync failed');
     return;
-  }
-
-  setStatus(data.source === 'live' ? 'live' : 'stale',
-    data.source === 'live' ? 'Live from Sheet' : 'Cached snapshot');
-  if (data.source !== 'live' && data.error) {
-    $('#liveStatus').title = `Live fetch failed: ${data.error}`;
   }
 
   thead.innerHTML = '';
@@ -284,9 +266,15 @@ function bindEvents() {
     renderTable();
   });
 
-  $('#refreshBtn').addEventListener('click', () => {
+  $('#refreshBtn').addEventListener('click', async () => {
+    const btn = $('#refreshBtn');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '⟳ Syncing…';
     if (state.manifestEntry) monthCache.delete(state.manifestEntry.sheet);
-    renderTable();
+    await renderTable(true);
+    btn.textContent = original;
+    btn.disabled = false;
   });
 }
 

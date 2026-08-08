@@ -54,12 +54,23 @@ function parseMonthTable(table, team) {
   const row0 = rows[0];
   const row1 = rows[1];
 
+  // Find the first date column, then take only the CONTIGUOUS run from there.
+  // Some sheets (Outbound) have a stray repeated date far to the right next to
+  // summary columns (e.g. "Salary Payable") — that must not be treated as a day.
+  let firstDateIdx = -1;
+  for (let i = 0; i < row0.length; i++) {
+    if (gvizDateToISO(cellValue(row0[i]))) { firstDateIdx = i; break; }
+  }
+  if (firstDateIdx === -1) throw new Error('No date columns found');
+
   const dateCols = [];
-  row0.forEach((cell, i) => {
-    const iso = gvizDateToISO(cellValue(cell));
-    if (iso) dateCols.push(i);
-  });
-  if (!dateCols.length) throw new Error('No date columns found');
+  for (let i = firstDateIdx; i < row0.length; i++) {
+    if (gvizDateToISO(cellValue(row0[i]))) {
+      dateCols.push(i);
+    } else {
+      break; // stop at first gap — ignore any later, disconnected date cell
+    }
+  }
 
   const dates = dateCols.map(i => gvizDateToISO(cellValue(row0[i])));
   const dayNames = dateCols.map(i => {
