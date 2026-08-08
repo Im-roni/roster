@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shift Log — Roster Portal</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="dial-strip" aria-hidden="true">
+  <div class="dial-track"></div>
+  <div class="dial-marker" id="dialMarker"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">⏱</span>
+    <div class="brand-text">
+      <h1>Shift Log</h1>
+      <p>IB / OB roster &amp; attendance portal</p>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-view="attendance">Roster</button>
+    <button class="tab" data-view="directory">Directory</button>
+  </nav>
+  <div class="clock" id="liveClock"></div>
+</header>
+
+<main>
+
+  <section id="view-attendance" class="view active">
+    <div class="controls">
+      <div class="control-group">
+        <label>Team</label>
+        <div class="segmented" id="teamSwitch">
+          <button class="seg active" data-team="IB">Inbound</button>
+          <button class="seg" data-team="OB">Outbound</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label for="monthSelect">Month</label>
+        <select id="monthSelect"></select>
+      </div>
+      <div class="control-group grow">
+        <label for="searchInput">Find teammate</label>
+        <input id="searchInput" type="text" placeholder="Search by name…" autocomplete="off">
+      </div>
+      <div class="control-group stat-group" id="statGroup"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="rosterTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <p class="empty-note" id="emptyNote" hidden>No matching teammate this month.</p>
+    </div>
+
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section id="view-directory" class="view">
+    <div class="dir-head">
+      <h2>Team directory</h2>
+      <p>Desk extensions &amp; AnyDesk IDs on file.</p>
+    </div>
+    <div class="dir-grid" id="dirGrid"></div>
+  </section>
+
+</main>
+
+<footer>
+  <span>Data synced from the team roster spreadsheet · <span id="rangeLabel"></span></span>
+</footer>
+
+<script src="attendance_data.js"></script>
+<script src="directory_data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
